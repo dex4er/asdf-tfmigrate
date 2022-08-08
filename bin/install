@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+[[ -z ${ASDF_INSTALL_TYPE+x} ]] && echo "ASDF_INSTALL_TYPE is required" && exit 1
+[[ -z ${ASDF_INSTALL_VERSION+x} ]] && echo "ASDF_INSTALL_VERSION is required" && exit 1
+[[ -z ${ASDF_INSTALL_PATH+x} ]] && echo "ASDF_INSTALL_PATH is required" && exit 1
+
+install() {
+	local install_type=$1
+	[[ ${install_type} != "version" ]] && echo "install type, ${install_type}, is not supported" && exit 1
+
+	local version=$2
+	local install_path=$3
+
+	local tmp_download_dir
+
+	if [[ -z ${TMPDIR:-} ]]; then
+		tmp_download_dir=$(mktemp -d)
+	else
+		tmp_download_dir=${TMPDIR%/}
+	fi
+
+	local bin_install_path="${install_path}/bin"
+
+	local platform
+	platform=$(uname | tr '[:upper:]' '[:lower:]')
+
+	local arch
+	arch=$(uname -m)
+	case "${arch}" in
+	x86_64) arch="amd64" ;;
+	aarch64) arch="arm64" ;;
+	esac
+
+	local download_url
+	download_url="https://github.com/minamijoyo/tfmigrate/releases/download/v${version}/tfmigrate_${version}_${platform}_${arch}.tar.gz"
+
+	local checksum_url
+	checksum_url="https://github.com/minamijoyo/tfmigrate/releases/download/v${version}/tfmigrate_${version}_checksums.txt"
+
+	echo "Downloading tfmigrate from ${download_url}"
+
+	pushd "${tmp_download_dir}" >/dev/null
+
+	curl -sLO "${download_url}"
+
+	if command -v shasum >/dev/null; then
+		curl -sL "${checksum_url}" | grep "tfmigrate_${version}_${platform}_${arch}.tar.gz" | shasum -a 256 -c
+	elif command -v sha256sum; then
+		curl -sL "${checksum_url}" | grep "tfmigrate_${version}_${platform}_${arch}.tar.gz" | sha256sum -c
+	fi
+
+	tar zxf "tfmigrate-${platform}-${arch}.tar.gz"
+
+	mkdir -p "${bin_install_path}"
+
+	cp "tfmigrate" "${bin_install_path}/tfmigrate"
+	chmod +x "${bin_install_path}/tfmigrate"
+
+	popd >/dev/null
+}
+
+install "${ASDF_INSTALL_TYPE}" "${ASDF_INSTALL_VERSION}" "${ASDF_INSTALL_PATH}"
