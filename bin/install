@@ -51,7 +51,7 @@ install() {
 		curl -sL "${checksum_url}" | grep "tfmigrate_${version}_${platform}_${arch}.tar.gz" | sha256sum -c
 	fi
 
-	tar zxf "tfmigrate-${platform}-${arch}.tar.gz"
+	tar zxf "tfmigrate_${version}_${platform}_${arch}.tar.gz"
 
 	mkdir -p "${bin_install_path}"
 
