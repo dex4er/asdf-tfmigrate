@@ -1,7 +1,9 @@
 name: CI
 
+permissions: {}
+
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
   pull_request:
     paths-ignore:
       - "**.md"
@@ -10,33 +12,42 @@ on:
     paths-ignore:
       - "**.md"
       - LICENSE
-  schedule:
-    # At 12:00 on Monday
-    - cron: 0 12 * * 1
 
 jobs:
-  test:
+  ubuntu:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - macos-latest
-          - ubuntu-latest
+        include:
+          - container: alpine:latest
+            preinstall: apk add bash coreutils curl git jq
+          - container: centos:latest
+            preinstall: dnf -y --disablerepo '*' --enablerepo=extras swap centos-linux-repos centos-stream-repos && dnf -y install git jq
+          - container: ubuntu:latest
+            preinstall: apt-get -y update && apt-get -y install curl git jq
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
+
+    container:
+      image: ${{ matrix.container }}
 
     steps:
+      - name: Preinstall
+        run: ${{ matrix.preinstall }}
+
       - name: Test plugin
         uses: asdf-vm/actions/plugin-test@v1
         with:
           command: tfmigrate --version
 
-  trunk:
-    runs-on: ubuntu-latest
+  macos:
+    runs-on: macos-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+      - name: Preinstall
+        run: brew install jq
 
-      - name: Trunk Check
-        uses: trunk-io/trunk-action@v1.0.0
+      - name: Test plugin
+        uses: asdf-vm/actions/plugin-test@v1
+        with:
+          command: tfmigrate --version
